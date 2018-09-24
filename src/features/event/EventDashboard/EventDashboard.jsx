@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Grid, Button } from 'semantic-ui-react';
+import { Grid } from 'semantic-ui-react';
 import { connect } from 'react-redux'
 import EventList from '../EventList/EventList';
 import {deleteEvent} from '../eventActions';
