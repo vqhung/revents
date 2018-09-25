@@ -1,4 +1,4 @@
-import {MODAL_CLOSE, MODAL_OPEN} from './modelConstants'
+import {MODAL_CLOSE, MODAL_OPEN} from './modalConstants'
 import {createReducer} from '../../app/common/util/reducerUtil'
 
 const initalState = null
