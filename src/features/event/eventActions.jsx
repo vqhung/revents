@@ -4,6 +4,7 @@ import { FETCH_EVENTS } from './eventConstants';
 import { asyncActionStart, asyncActionFinish, asyncActionError} from '../async/asyncActions'
 import { createNewEvent } from '../../app/common/util/helpers'
 import firebase from '../../app/config/firebase'
+import compareAsc from 'date-fns/compare_asc'
 
 export const getEventsForDashboard = lastEvent => async (dispatch, getState) => {
   let today = new Date(Date.now());
@@ -75,20 +76,43 @@ export const createEvent = (event) => {
   }
 }
 
-export const updateEvent = (event) => {
-  return async (dispatch,getState,{getFirestore}) => {
-    const firestore = getFirestore()
-    if (event.date !== getState().firestore.ordered.events[0].date){
-      event.date = moment(event.date).toDate()
+export const updateEvent = event => {
+  return async (dispatch, getState) => {
+    dispatch(asyncActionStart());
+    const firestore = firebase.firestore();
+    if (event.date !== getState().firestore.ordered.events[0].date) {
+      event.date = moment(event.date).toDate();
     }
     try {
-      await firestore.update(`events/${event.id}`, event)
-      toastr.success('Success!', 'Event has been updated!')
+      let eventDocRef = firestore.collection('events').doc(event.id);
+      let dateEqual = compareAsc(getState().firestore.ordered.events[0].date.toDate(), event.date);
+      if (dateEqual !== 0) {
+        let batch = firestore.batch();
+        await batch.update(eventDocRef, event);
+
+        let eventAttendeeRef = firestore.collection('event_attendee');
+        let eventAttendeeQuery = await eventAttendeeRef.where('eventId', '==', event.id);
+        let eventAttendeeQuerySnap = await eventAttendeeQuery.get();
+
+        for (let i = 0; i < eventAttendeeQuerySnap.docs.length; i++) {
+          let eventAttendeeDocRef = await firestore.collection('event_attendee').doc(eventAttendeeQuerySnap.docs[i].id);
+          await batch.update(eventAttendeeDocRef, {
+            eventDate: event.date
+          })
+        }
+        await batch.commit();
+      } else {
+        await eventDocRef.update(event);
+      }
+      dispatch(asyncActionFinish());
+      toastr.success('Success', 'Event has been updated');
     } catch (error) {
-      toastr.error('Oops', 'Something went wrong')
+      console.log(error);
+      dispatch(asyncActionError());
+      toastr.error('Oops', 'Something went wrong');
     }
-  }
-}
+  };
+};
 
 export const cancelToggle = (cancelled, eventId) => 
   async (dispatch, getState, {getFirestore}) => {
@@ -107,49 +131,7 @@ export const cancelToggle = (cancelled, eventId) =>
     }
   }
 
-  export const goingToEvent = (event) => 
-    async (dispatch, getState, {getFirestore}) => {
-      const firestore = getFirestore()
-      const user = firestore.auth().currentUser;
-      const photoURL = getState().firebase.profile.photoURL
-      const attendee = {
-        going: true,
-        joinDate: Date.now(),
-        photoURL: photoURL || '/assets/user.png',
-        displayName: user.displayName
-      }
-      try {
-        await firestore.update(`events/${event.id}`, {
-          [`attendees.${user.uid}`]: attendee
-        })
-        await firestore.set(`event_attendee/${event.id}_${user.uid}`, {
-          eventId: event.id,
-          userUid: user.uid,
-          eventDate: event.date,
-          host: false
-        })
-        toastr.success('Success', 'You have signed up to the event')
-      } catch (error) {
-        console.log(error)
-        toastr.error('Oops', 'Problem signing up to event')
-      }
-    }
-
-export const cancelGoingToEvent = (event) =>
-  async (dispatch, getState, {getFirestore}) => {
-    const firestore = getFirestore()
-    const user = firestore.auth().currentUser;
-    try {
-      await firestore.update(`events/${event.id}`, {
-        [`attendees.${user.uid}`]: firestore.FieldValue.delete()
-      })
-      await firestore.delete(`event_attendee/${event.id}_${user.uid}`)
-      toastr.success('Success','You have removed yourself from the event')
-    } catch (error) {
-      console.log(error)
-      toastr.error('Oops','Something went wrong')
-    }
-  }
+  
 
   export const addEventComment = (eventId, values, parentId) => 
   async (dispatch, getState, {getFirebase}) => {

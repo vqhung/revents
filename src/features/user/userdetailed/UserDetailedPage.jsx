@@ -10,7 +10,7 @@ import UserDetailedSidebar from "./UserDetailedSidebar";
 import UserDetailedEvents from "./UserDetailedEvents";
 import { userDetailQuery } from "../userQueries";
 import LoadingComponent from "../../../app/layout/LoadingComponent";
-import { getUserEvents } from "../userActions";
+import { getUserEvents, followUser, unfollowUser } from "../userActions";
 
 const mapState = (state, ownProps) => {
   let userUid = null;
@@ -33,12 +33,15 @@ const mapState = (state, ownProps) => {
     events: state.events,
     eventsLoading: state.async.loading,
     photos: state.firestore.ordered.photos,
-    requesting: state.firestore.status.requesting
+    requesting: state.firestore.status.requesting,
+    following: state.firestore.ordered.following
   };
 };
 
 const actions = {
-  getUserEvents
+  getUserEvents,
+  followUser,
+  unfollowUser
 };
 
 class UserDetailedPage extends Component {
@@ -58,16 +61,27 @@ class UserDetailedPage extends Component {
       match,
       requesting,
       events,
-      eventsLoading
+      eventsLoading,
+      followUser,
+      unfollowUser,
+      following
     } = this.props;
     const currentUser = auth.uid === match.params.id;
     const loading = Object.values(requesting).some(a => a === true);
+    const isFollowing = !isEmpty(following);
+
     if (loading) return <LoadingComponent inverted={true} />;
     return (
       <Grid>
         <UserDetailedHeader profile={profile} />
         <UserDetailedDescription profile={profile} />
-        <UserDetailedSidebar currentUser={currentUser} />
+        <UserDetailedSidebar 
+        currentUser={currentUser} 
+        followUser={followUser} 
+        profile={profile}
+        isFollowing={isFollowing}
+        unfollowUser={unfollowUser}
+        />
         {photos && photos.length > 0 && <UserDetailedPhotos photos={photos} />}
         <UserDetailedEvents
           events={events}
@@ -84,5 +98,5 @@ export default compose(
     mapState,
     actions
   ),
-  firestoreConnect((auth, userUid) => userDetailQuery(auth, userUid))
+  firestoreConnect((auth, userUid, match) => userDetailQuery(auth, userUid, match))
 )(UserDetailedPage);

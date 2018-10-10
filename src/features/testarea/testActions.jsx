@@ -24,9 +24,9 @@ export const finishCounterAction = () => {
     }
 }
 
-const delay = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms))
-}
+// const delay = (ms) => {
+//     return new Promise(resolve => setTimeout(resolve, ms))
+// }
 
 export const incrementAsync = () => {
     return async dispatch => {
